@@ -23,6 +23,7 @@ python -m http.server 8000
 ## 当前功能 / Current features
 
 - 1–120 分钟计时，暂停、继续和重置。 / A 1–120 minute timer with pause, resume, and reset.
+- 刷新或重新打开页面后恢复计时，暂停状态也会保留。 / Restore an active or paused timer after refreshing or reopening the page.
 - 记录目标、分类、开始时间、完成时间和专注分钟数。 / Task, category, start time, finish time, and focus minutes.
 - 今日汇总与最近七天的简单柱状图。 / Today's totals and a simple chart for the last seven days.
 - 导出 CSV，可用 Excel 或 WPS 打开。 / CSV export for Excel, WPS, or other spreadsheet tools.
@@ -37,15 +38,23 @@ The CSV columns are `task`, `category`, `started_at`, `finished_at`, and `durati
 
 Records live in the current browser's `localStorage`. Clearing browser data removes them, and they are not synced across browsers, devices, or origins. Export a CSV before moving or clearing data. Import is not available yet.
 
-正在进行的计时不会在刷新或关闭页面后恢复。后台页面或设备休眠可能延迟结束提示；回来时会重新核对时间。界面目前是中文，完成提醒只有页面文字，没有声音通知。
+开始、暂停和继续时会保存这一轮的状态。重新打开相同地址后，运行中的计时按原截止时间继续；暂停中的计时仍然暂停。如果关闭期间已到时间，回来后补记一条完成记录，完成日期按截止时间计算。
 
-An active timer does not survive a page refresh or closure. Background tabs or device sleep may delay the completion message; elapsed time is checked when the page becomes active again. The interface is currently in Chinese, with a text-only completion message.
+Starting, pausing, and resuming save the current session. Reopen the same address to continue a running timer against its saved deadline, or leave a paused timer paused. If the deadline passed while the page was closed, one completed session is recorded on return, dated at the deadline.
+
+后台页面或设备休眠可能延迟结束提示。请只开一个计时页面；多个标签页同时操作暂时没有同步。浏览器禁止本地存储时，页面会提示进度无法保存。界面目前是中文，完成提醒只有页面文字，没有声音通知。
+
+Background tabs or device sleep may delay the completion message. Use one timer tab; simultaneous tabs are not synced. If local storage is blocked, the page warns that progress cannot be saved. The interface is currently in Chinese, with a text-only completion message.
 
 ## 代码怎么分 / Code layout
 
 `core.js` 放计时和 CSV 相关的计算，`app.js` 处理按钮、记录和图表，`style.css` 负责布局。计时保存一个截止时间，每次用当前时间计算剩余时长，避免把定时回调次数当成真实经过的时间。暂停时保存剩余时长，继续时重新计算截止时间。
 
 `core.js` contains timer and CSV logic, `app.js` handles controls, storage, and the chart, and `style.css` defines the layout. The timer compares the current time with a deadline instead of counting interval callbacks. Pausing stores the remaining duration; resuming creates a new deadline.
+
+恢复时读取保存的计时状态，不会重新开始一整轮。每轮有一个固定 ID，补记结束记录时先检查是否已有同一个 ID，避免刷新后重复计数。
+
+Restoration reads the saved state instead of restarting a full session. Each session keeps a stable ID; completion checks that ID before adding a record, so reopening the page does not count the same session again.
 
 装有 Node.js 时，可运行核心逻辑检查：
 

@@ -1,11 +1,13 @@
 "use strict";
 
-const { Timer, dateKey, weeklyMinutes, toCsv, validSession } = FocusCore;
+const { Timer, dateKey, weeklyMinutes, toCsv, validSession, validActiveSession } = FocusCore;
 const byId = (id) => document.getElementById(id);
 const storageKey = "focus-log.sessions.v1";
+const activeStorageKey = "focus-log.active.v1";
 let sessions = [];
 let mode = "focus";
 let startedAt = null;
+let sessionId = null;
 let sessionTask = "";
 let sessionCategory = "";
 let configuredMinutes = 25;
@@ -16,18 +18,68 @@ try {
   if (!Array.isArray(stored) || !stored.every(validSession)) throw new Error("Invalid records");
   sessions = stored;
 } catch (error) {
-  byId("message").textContent = "无法读取本地记录。新记录仍可导出，本次不会覆盖原数据。";
+  byId("message").textContent = "无法读取本地记录。新记录仍可导出，本次不会覆盖原数据；计时进度暂不保存。";
 }
 
 let storageAvailable = byId("message").textContent === "";
+let activeStorageAvailable = storageAvailable;
 
 function saveRecords() {
-  if (!storageAvailable) return;
+  if (!storageAvailable) return false;
   try {
     localStorage.setItem(storageKey, JSON.stringify(sessions));
+    return true;
   } catch (error) {
     storageAvailable = false;
     byId("message").textContent = "浏览器无法保存记录。请在关闭页面前导出 CSV。";
+    return false;
+  }
+}
+
+function saveActiveTimer() {
+  if (!activeStorageAvailable) return;
+  try {
+    if (!startedAt) {
+      localStorage.removeItem(activeStorageKey);
+    } else {
+      localStorage.setItem(activeStorageKey, JSON.stringify({
+        version: 1, id: sessionId, mode, task: sessionTask, category: sessionCategory,
+        startedAt, minutes: configuredMinutes, timer: timer.snapshot()
+      }));
+    }
+  } catch (error) {
+    activeStorageAvailable = false;
+    byId("message").textContent = "浏览器无法保存计时进度。刷新页面可能会中断这一轮。";
+  }
+}
+
+function restoreActiveTimer() {
+  if (!activeStorageAvailable) return;
+  try {
+    const raw = localStorage.getItem(activeStorageKey);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    const categories = Array.from(byId("category").options, (option) => option.value);
+    if (!validActiveSession(saved) || !categories.includes(saved.category)) {
+      throw new Error("Invalid saved session");
+    }
+    timer.restore(saved.timer);
+    mode = saved.mode;
+    startedAt = saved.startedAt;
+    sessionId = saved.id;
+    sessionTask = saved.task;
+    sessionCategory = saved.category;
+    configuredMinutes = saved.minutes;
+    byId("task").value = sessionTask;
+    byId("category").value = sessionCategory;
+    byId("minutes").value = configuredMinutes;
+    displayMode();
+    setLocked(true);
+    byId("start").textContent = timer.running ? "暂停" : "继续";
+    byId("timer-state").textContent = timer.running ? "已恢复计时" : "已恢复暂停状态";
+  } catch (error) {
+    activeStorageAvailable = false;
+    byId("message").textContent = "无法恢复上次计时。原状态未覆盖，这一轮的进度暂不保存。";
   }
 }
 
@@ -95,14 +147,18 @@ function drawRecords() {
 
 function checkFinished() {
   const now = Date.now();
+  const finishedAt = timer.deadline;
   if (!timer.tick(now)) return;
+  let saved = mode === "break";
   if (mode === "focus") {
-    sessions.push({
-      id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
-      task: sessionTask, category: sessionCategory,
-      startedAt, finishedAt: new Date(now).toISOString(), minutes: configuredMinutes
-    });
-    saveRecords();
+    // A saved session ID also prevents a repeat record if clearing the timer was interrupted.
+    if (!sessions.some((session) => session.id === sessionId)) {
+      sessions.push({
+        id: sessionId, task: sessionTask, category: sessionCategory,
+        startedAt, finishedAt: new Date(finishedAt).toISOString(), minutes: configuredMinutes
+      });
+    }
+    saved = saveRecords();
     drawRecords();
     byId("timer-state").textContent = "这一轮完成了，休息一下吧";
   } else {
@@ -111,14 +167,18 @@ function checkFinished() {
   byId("start").textContent = "再来一轮";
   setLocked(false);
   startedAt = null;
+  sessionId = null;
+  if (saved) saveActiveTimer();
 }
 
 function resetTimer() {
   timer.reset(configuredMinutes);
   startedAt = null;
+  sessionId = null;
   byId("start").textContent = mode === "focus" ? "开始专注" : "开始休息";
   byId("timer-state").textContent = "准备好了就开始";
   setLocked(false);
+  saveActiveTimer();
   displayTime();
 }
 
@@ -139,16 +199,19 @@ byId("start").addEventListener("click", () => {
     if (!startedAt) {
       configuredMinutes = requested;
       timer.reset(configuredMinutes);
-      startedAt = new Date().toISOString();
+      const now = Date.now();
+      startedAt = new Date(now).toISOString();
+      sessionId = `${now}-${Math.random().toString(36).slice(2, 8)}`;
       sessionTask = byId("task").value.trim() || "未命名专注";
       sessionCategory = byId("category").value;
     }
-    if (storageAvailable) byId("message").textContent = "";
+    if (storageAvailable && activeStorageAvailable) byId("message").textContent = "";
     timer.start(Date.now());
     byId("start").textContent = "暂停";
     byId("timer-state").textContent = mode === "focus" ? "正在专注" : "休息中";
     setLocked(true);
   }
+  saveActiveTimer();
   displayTime();
 });
 
@@ -168,12 +231,16 @@ function selectMode(nextMode) {
   mode = nextMode;
   configuredMinutes = mode === "focus" ? 25 : 5;
   byId("minutes").value = configuredMinutes;
+  displayMode();
+  resetTimer();
+}
+
+function displayMode() {
   for (const current of ["focus", "break"]) {
     byId(`${current}-mode`).classList.toggle("selected", mode === current);
     byId(`${current}-mode`).setAttribute("aria-pressed", mode === current);
   }
   byId("mode-caption").textContent = mode === "focus" ? "给这一轮定一个小目标" : "离开屏幕，活动一下";
-  resetTimer();
 }
 byId("focus-mode").addEventListener("click", () => selectMode("focus"));
 byId("break-mode").addEventListener("click", () => selectMode("break"));
@@ -203,4 +270,6 @@ document.addEventListener("visibilitychange", () => {
 });
 let lastDate = dateKey(new Date());
 drawRecords();
+restoreActiveTimer();
+checkFinished();
 displayTime();

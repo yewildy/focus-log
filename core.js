@@ -37,6 +37,40 @@
       this.pause(now);
       return true;
     }
+
+    snapshot() {
+      return { durationMs: this.durationMs, remainingMs: this.remainingMs,
+        deadline: this.deadline, running: this.running };
+    }
+
+    restore(state) {
+      if (!validTimerState(state)) throw new TypeError("Invalid saved timer.");
+      this.durationMs = state.durationMs;
+      this.remainingMs = state.remainingMs;
+      this.deadline = state.deadline;
+      this.running = state.running;
+    }
+  }
+
+  function validTimerState(state) {
+    return state && Number.isInteger(state.durationMs) &&
+      state.durationMs >= 60000 && state.durationMs <= 7200000 &&
+      state.durationMs % 60000 === 0 && Number.isFinite(state.remainingMs) &&
+      state.remainingMs >= 0 && state.remainingMs <= state.durationMs &&
+      typeof state.running === "boolean" &&
+      (state.running ? Number.isFinite(state.deadline) : state.deadline === null);
+  }
+
+  function validActiveSession(session) {
+    return session && session.version === 1 &&
+      typeof session.id === "string" && session.id.length > 0 &&
+      ["focus", "break"].includes(session.mode) &&
+      typeof session.task === "string" && session.task.length <= 100 &&
+      typeof session.category === "string" &&
+      typeof session.startedAt === "string" && Number.isFinite(Date.parse(session.startedAt)) &&
+      Number.isInteger(session.minutes) && validTimerState(session.timer) &&
+      session.minutes * 60000 === session.timer.durationMs &&
+      (session.timer.running || session.timer.remainingMs > 0);
   }
 
   function dateKey(date) {
@@ -82,7 +116,7 @@
       Number.isFinite(Date.parse(session.finishedAt));
   }
 
-  const api = { Timer, dateKey, weeklyMinutes, toCsv, validSession };
+  const api = { Timer, dateKey, weeklyMinutes, toCsv, validSession, validActiveSession };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.FocusCore = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
