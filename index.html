@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="一个可以离线使用的专注计时器，记录学习时间并导出 CSV。">
+  <title>专注小记 · Focus Log</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="core.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">FOCUS LOG</p>
+        <h1>专注小记</h1>
+        <p class="intro">留一段时间，把手头的一件事做完。</p>
+      </div>
+      <span class="local-label">离线可用 · 数据留在浏览器</span>
+    </header>
+
+    <section class="workspace" aria-label="专注计时">
+      <div class="timer-panel">
+        <div class="mode-switch" aria-label="计时模式">
+          <button id="focus-mode" class="mode selected" type="button" aria-pressed="true">专注</button>
+          <button id="break-mode" class="mode" type="button" aria-pressed="false">休息</button>
+        </div>
+        <p id="mode-caption" class="timer-caption">给这一轮定一个小目标</p>
+        <p id="timer" class="timer" aria-label="剩余时间">25:00</p>
+        <p id="timer-state" class="timer-state">准备好了就开始</p>
+        <div class="timer-actions">
+          <button id="start" class="primary" type="button">开始专注</button>
+          <button id="reset" class="secondary" type="button">重置</button>
+        </div>
+        <p class="timer-note">完整结束一轮专注后，会自动记下一条记录。</p>
+      </div>
+
+      <form id="session-form" class="session-panel">
+        <h2>这一轮做什么</h2>
+        <label for="task">小目标</label>
+        <input id="task" name="task" type="text" maxlength="100" placeholder="例如：整理今天遇到的日语表达">
+        <label for="category">分类</label>
+        <select id="category" name="category">
+          <option>日语</option>
+          <option>雅思</option>
+          <option>电路 / 编程</option>
+          <option>音乐 / 练琴</option>
+          <option>其他</option>
+        </select>
+        <label for="minutes">时长（分钟）</label>
+        <input id="minutes" name="minutes" type="number" min="1" max="120" step="1" value="25" required>
+        <p class="field-note">1–120 分钟。开始后锁定这一轮的设置。</p>
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="summary" aria-label="今天的记录">
+      <div><span class="summary-label">今天专注</span><p><strong id="today-minutes">0</strong><span>分钟</span></p></div>
+      <div><span class="summary-label">完成轮数</span><p><strong id="today-count">0</strong><span>轮</span></p></div>
+      <div><span class="summary-label">最近七天</span><p><strong id="week-minutes">0</strong><span>分钟</span></p></div>
+    </section>
+
+    <section class="history-panel">
+      <div class="section-heading">
+        <h2>最近七天</h2><span class="muted">按完成日期统计</span>
+      </div>
+      <div id="week-chart" class="week-chart" role="list" aria-label="最近七天每日专注分钟数"></div>
+      <div class="section-heading records-heading">
+        <h2>专注记录</h2><button id="export" class="secondary" type="button" disabled>导出 CSV</button>
+      </div>
+      <p id="empty" class="empty">还没有记录。完成第一轮后，会显示在这里。</p>
+      <div class="table-scroll">
+        <table id="records-table" hidden>
+          <thead><tr><th scope="col">完成时间</th><th scope="col">小目标</th><th scope="col">分类</th><th scope="col">分钟</th></tr></thead>
+          <tbody id="records"></tbody>
+        </table>
+      </div>
+    </section>
+    <footer>记录只保存在当前浏览器；换设备或清理浏览器前，记得导出。休息时间不计入专注记录。</footer>
+  </main>
+</body>
+</html>
