@@ -52,6 +52,8 @@ input::placeholder { color: #8c948c; }
 .chart-label { font-size: 11px; color: var(--muted); margin-top: 9px; }
 .records-heading { padding-top: 23px; border-top: 1px solid var(--line); }
 .records-heading button { padding: 7px 12px; font-size: 12px; }
+.records-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.import-message:empty { display: none; }
 .empty { color: var(--muted); text-align: center; padding: 28px 0 12px; font-size: 13px; }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 18px; }

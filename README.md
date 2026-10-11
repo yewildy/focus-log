@@ -26,17 +26,27 @@ python -m http.server 8000
 - 刷新或重新打开页面后恢复计时，暂停状态也会保留。 / Restore an active or paused timer after refreshing or reopening the page.
 - 记录目标、分类、开始时间、完成时间和专注分钟数。 / Task, category, start time, finish time, and focus minutes.
 - 今日汇总与最近七天的简单柱状图。 / Today's totals and a simple chart for the last seven days.
-- 导出 CSV，可用 Excel 或 WPS 打开。 / CSV export for Excel, WPS, or other spreadsheet tools.
+- 导出 CSV，也可以导入备份并合并记录，重复记录会跳过。 / Export CSV backups and import them to merge records, skipping duplicates.
 
-CSV 列为 `task`、`category`、`started_at`、`finished_at`、`duration_minutes`。时间以 UTC 的 ISO 格式导出，页面按设备本地时间显示。带有公式前缀的任务名称会在导出时加上单引号，避免被表格软件当作公式执行。
+## 备份与恢复 / Back up and restore
 
-The CSV columns are `task`, `category`, `started_at`, `finished_at`, and `duration_minutes`. Exported timestamps use ISO format in UTC; the page displays device-local time. Task names with formula prefixes are escaped with a leading apostrophe for spreadsheet safety.
+点击“导出 CSV”保存备份。在另一个浏览器或设备打开页面后，点击“导入 CSV”选择该文件。导入会保留已有记录，相同 ID 或相同内容的记录会跳过；正在进行的计时不会重置。文件有错误时，整份备份不会导入，页面会说明原因。
+
+Click “导出 CSV” to save a backup. Open the page in another browser or device and use “导入 CSV” to select the file. Import keeps existing records and skips matching IDs or identical content; it does not reset an active timer. If the file contains an error, the entire import is rejected with a message.
+
+CSV 可用 Excel 或 WPS 查看。列为 `task`、`category`、`started_at`、`finished_at`、`duration_minutes`、`id`、`escaped_fields`。保留原表头和最后两列，才能准确恢复文字与记录 ID。时间以 UTC 的 ISO 格式导出，页面按设备本地时间显示。
+
+You can view the CSV in Excel or WPS. Its columns are `task`, `category`, `started_at`, `finished_at`, `duration_minutes`, `id`, and `escaped_fields`. Keep the original header and the last two columns intact to restore text and record IDs correctly. Exported timestamps use ISO format in UTC; the page displays device-local time.
+
+带公式前缀的文字会加单引号，导入时按 `escaped_fields` 还原。早期的五列导出文件也能导入，但其中用于保护公式的单引号会保留。文件需为 UTF-8 编码，大小不超过 2 MB，每次最多 10000 条记录。
+
+Text with formula prefixes gets a protective apostrophe, which import removes according to `escaped_fields`. Earlier five-column exports also work, but their protective apostrophes remain. Files must be UTF-8, at most 2 MB, and contain no more than 10,000 records per import.
 
 ## 几个限制 / Limitations
 
-记录存在当前浏览器的 `localStorage` 中。清理浏览器数据会丢失记录，换浏览器、换设备或换访问地址也不会自动同步。关闭页面前可以导出 CSV；目前还不支持导入。
+记录存在当前浏览器的 `localStorage` 中。清理浏览器数据会丢失记录，换浏览器、换设备或换访问地址也不会自动同步。清理或迁移前请先导出 CSV，再到新页面导入。
 
-Records live in the current browser's `localStorage`. Clearing browser data removes them, and they are not synced across browsers, devices, or origins. Export a CSV before moving or clearing data. Import is not available yet.
+Records live in the current browser's `localStorage`. Clearing browser data removes them, and they are not synced across browsers, devices, or origins. Export a CSV before moving or clearing data, then import it into the new page.
 
 开始、暂停和继续时会保存这一轮的状态。重新打开相同地址后，运行中的计时按原截止时间继续；暂停中的计时仍然暂停。如果关闭期间已到时间，回来后补记一条完成记录，完成日期按截止时间计算。
 
@@ -56,6 +66,10 @@ Background tabs or device sleep may delay the completion message. Use one timer 
 
 Restoration reads the saved state instead of restarting a full session. Each session keeps a stable ID; completion checks that ID before adding a record, so reopening the page does not count the same session again.
 
+CSV 按引号和分隔符逐字读取，所以目标中的逗号、引号或换行不会拆成多条记录。所有行先通过校验，再按 ID 与内容去重；合并结果成功写入浏览器后才更新页面。
+
+The CSV reader tracks quotes and separators, so commas, quotes, or line breaks inside a task stay in one record. All rows are validated before deduplication by ID and content. The page updates only after the merged records are saved successfully.
+
 装有 Node.js 时，可运行核心逻辑检查：
 
 With Node.js installed, run the core checks:
@@ -64,6 +78,6 @@ With Node.js installed, run the core checks:
 node --test
 ```
 
-想试着改代码，可以先在 `index.html` 里给分类加一项，比如“阅读”。然后完成一轮短计时，检查页面和导出的 CSV 是否都出现了新分类。
+想试着改代码，可以先在 `index.html` 里给分类加一项，比如“阅读”。完成一轮短计时，导出 CSV，再把同一份备份导入两次：新分类应保留，记录数应不变。
 
-For a small first change, add a category such as “Reading” to `index.html`. Complete a short session and check that the new category appears both in the page and in the exported CSV.
+For a small first change, add a category such as “Reading” to `index.html`. Complete a short session, export it, and import the same backup twice: the new category should remain, and the record count should not change.

@@ -38,8 +38,8 @@ test("fractional, missing, and out-of-range durations are rejected", () => {
 
 test("CSV preserves Chinese, quotes, commas and line breaks and escapes formulas", () => {
   const csv = toCsv([
-    { task: '日语,"表达"\n复习', category: "日语", startedAt: "2026-10-09T01:00:00Z", finishedAt: "2026-10-09T01:25:00Z", minutes: 25 },
-    { task: '=HYPERLINK("https://example.com")', category: "+test", startedAt: "2026-10-09T02:00:00Z", finishedAt: "2026-10-09T02:01:00Z", minutes: 1 }
+    { id: "sample-1", task: '日语,"表达"\n复习', category: "日语", startedAt: "2026-10-09T01:00:00Z", finishedAt: "2026-10-09T01:25:00Z", minutes: 25 },
+    { id: "sample-2", task: '=HYPERLINK("https://example.com")', category: "+test", startedAt: "2026-10-09T02:00:00Z", finishedAt: "2026-10-09T02:01:00Z", minutes: 1 }
   ]);
   assert.equal(csv.charCodeAt(0), 0xfeff);
   assert.ok(csv.includes('"日语,""表达""\n复习"'));

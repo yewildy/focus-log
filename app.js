@@ -1,6 +1,6 @@
 "use strict";
 
-const { Timer, dateKey, weeklyMinutes, toCsv, validSession, validActiveSession } = FocusCore;
+const { Timer, dateKey, weeklyMinutes, toCsv, fromCsv, mergeSessions, validSession, validActiveSession } = FocusCore;
 const byId = (id) => document.getElementById(id);
 const storageKey = "focus-log.sessions.v1";
 const activeStorageKey = "focus-log.active.v1";
@@ -31,6 +31,7 @@ function saveRecords() {
     return true;
   } catch (error) {
     storageAvailable = false;
+    byId("import").disabled = true;
     byId("message").textContent = "浏览器无法保存记录。请在关闭页面前导出 CSV。";
     return false;
   }
@@ -245,6 +246,42 @@ function displayMode() {
 byId("focus-mode").addEventListener("click", () => selectMode("focus"));
 byId("break-mode").addEventListener("click", () => selectMode("break"));
 
+byId("import").addEventListener("click", () => byId("import-file").click());
+byId("import-file").addEventListener("change", async () => {
+  const input = byId("import-file");
+  const file = input.files[0];
+  if (!file) return;
+  byId("import").disabled = true;
+  try {
+    if (!storageAvailable) throw new Error("本地记录不可用，暂时不能导入。");
+    if (file.size > 2 * 1024 * 1024) throw new Error("CSV 文件不能超过 2 MB。");
+    let text;
+    try {
+      text = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
+    } catch (error) {
+      throw new Error("无法读取文件，请选择 UTF-8 编码的 CSV。");
+    }
+    const incoming = fromCsv(text);
+    checkFinished();
+    if (!storageAvailable) throw new Error("浏览器无法保存记录，暂时不能导入。");
+    const result = mergeSessions(sessions, incoming);
+    if (result.added > 0) {
+      // Validate everything and persist the merged copy before changing the current records.
+      try { localStorage.setItem(storageKey, JSON.stringify(result.sessions)); }
+      catch (error) { throw new Error("浏览器无法保存导入记录，现有记录未改动。"); }
+      sessions = result.sessions;
+      drawRecords();
+    }
+    byId("import-message").textContent = incoming.length === 0 ? "文件中没有专注记录。" :
+      `已导入 ${result.added} 条记录，跳过 ${result.duplicates} 条重复记录。`;
+  } catch (error) {
+    byId("import-message").textContent = `导入未完成：${error.message}`;
+  } finally {
+    input.value = "";
+    byId("import").disabled = !storageAvailable;
+  }
+});
+
 byId("export").addEventListener("click", () => {
   const url = URL.createObjectURL(new Blob([toCsv(sessions)], { type: "text/csv;charset=utf-8;" }));
   const link = document.createElement("a");
@@ -269,6 +306,7 @@ document.addEventListener("visibilitychange", () => {
   displayTime();
 });
 let lastDate = dateKey(new Date());
+byId("import").disabled = !storageAvailable;
 drawRecords();
 restoreActiveTimer();
 checkFinished();
