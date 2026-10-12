@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { Timer, dateKey, weeklyMinutes, toCsv, validActiveSession } = require("../core.js");
+const { Timer, dateKey, weeklyMinutes, weeklyCategoryMinutes, toCsv, validActiveSession } = require("../core.js");
 
 test("pause time is excluded and repeated starts do not extend the session", () => {
   const timer = new Timer(1);
@@ -61,6 +61,36 @@ test("the seven-day chart uses local completion dates across a month boundary", 
   assert.deepEqual(days[0], { date: "2026-09-27", minutes: 25 });
   assert.deepEqual(days[6], { date: "2026-10-03", minutes: 15 });
   assert.equal(days.reduce((sum, day) => sum + day.minutes, 0), 40);
+});
+
+test("category totals share the chart's local-date window and include imported categories", () => {
+  const today = new Date(2026, 9, 3, 12);
+  const sessions = [
+    { category: "日语", finishedAt: new Date(2026, 8, 27, 0).toISOString(), minutes: 25 },
+    { category: "日语", finishedAt: new Date(2026, 9, 3, 23, 59).toISOString(), minutes: 15 },
+    { category: "音乐 / 练琴", finishedAt: new Date(2026, 9, 1, 14).toISOString(), minutes: 30 },
+    { category: "导入的阅读分类", finishedAt: new Date(2026, 9, 2, 14).toISOString(), minutes: 10 },
+    { category: "范围外", finishedAt: new Date(2026, 8, 26, 23, 59).toISOString(), minutes: 120 },
+    { category: "未来", finishedAt: new Date(2026, 9, 4, 0).toISOString(), minutes: 120 }
+  ];
+  const snapshot = JSON.stringify(sessions);
+  const categories = weeklyCategoryMinutes(sessions, today);
+  assert.deepEqual(categories, [
+    { category: "日语", minutes: 40, sessions: 2 },
+    { category: "音乐 / 练琴", minutes: 30, sessions: 1 },
+    { category: "导入的阅读分类", minutes: 10, sessions: 1 }
+  ]);
+  assert.equal(categories.reduce((sum, item) => sum + item.minutes, 0),
+    weeklyMinutes(sessions, today).reduce((sum, item) => sum + item.minutes, 0));
+  assert.equal(JSON.stringify(sessions), snapshot);
+});
+
+test("category summary stays empty without records in its seven-day window", () => {
+  const today = new Date(2026, 9, 12, 12);
+  assert.deepEqual(weeklyCategoryMinutes([], today), []);
+  assert.deepEqual(weeklyCategoryMinutes([
+    { category: "旧记录", finishedAt: new Date(2026, 9, 5, 23, 59).toISOString(), minutes: 25 }
+  ], today), []);
 });
 
 test("restoring a running timer keeps the original deadline", () => {

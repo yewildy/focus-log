@@ -26,7 +26,16 @@ python -m http.server 8000
 - 刷新或重新打开页面后恢复计时，暂停状态也会保留。 / Restore an active or paused timer after refreshing or reopening the page.
 - 记录目标、分类、开始时间、完成时间和专注分钟数。 / Task, category, start time, finish time, and focus minutes.
 - 今日汇总与最近七天的简单柱状图。 / Today's totals and a simple chart for the last seven days.
+- 最近七天按分类汇总分钟数和完成轮数。 / Minutes and completed sessions by category for the last seven days.
 - 导出 CSV，也可以导入备份并合并记录，重复记录会跳过。 / Export CSV backups and import them to merge records, skipping duplicates.
+
+“这七天在做什么”与柱状图都包含今天及前六个本地日期，按完成时间归类。分类按分钟数从多到少排列，横条表示该分类占七天总时长的比例；导入文件里的其他分类也会显示。跨午夜的一轮全部计入完成当天。
+
+The category summary and daily chart both cover today and the previous six local dates, using completion time. Categories are sorted by minutes, and each bar shows its share of the seven-day total. Categories from imported backups are included. A session crossing midnight counts entirely on its completion date.
+
+下图使用合成记录展示分类汇总，并非实际学习数据。 / The example below uses synthetic records, not actual study data.
+
+![分类汇总示例 / Category summary example](docs/category-example.png)
 
 ## 备份与恢复 / Back up and restore
 
@@ -58,9 +67,13 @@ Background tabs or device sleep may delay the completion message. Use one timer 
 
 ## 代码怎么分 / Code layout
 
-`core.js` 放计时和 CSV 相关的计算，`app.js` 处理按钮、记录和图表，`style.css` 负责布局。计时保存一个截止时间，每次用当前时间计算剩余时长，避免把定时回调次数当成真实经过的时间。暂停时保存剩余时长，继续时重新计算截止时间。
+`core.js` 放计时、统计和 CSV 相关的计算，`app.js` 处理按钮、记录和图表，`style.css` 负责布局。计时保存一个截止时间，每次用当前时间计算剩余时长，避免把定时回调次数当成真实经过的时间。暂停时保存剩余时长，继续时重新计算截止时间。
 
-`core.js` contains timer and CSV logic, `app.js` handles controls, storage, and the chart, and `style.css` defines the layout. The timer compares the current time with a deadline instead of counting interval callbacks. Pausing stores the remaining duration; resuming creates a new deadline.
+`core.js` contains timer, statistics and CSV logic, `app.js` handles controls, storage, and the chart, and `style.css` defines the layout. The timer compares the current time with a deadline instead of counting interval callbacks. Pausing stores the remaining duration; resuming creates a new deadline.
+
+每日图表和分类汇总共用七天的日期列表。分类汇总用 `Map` 累加分钟数与轮数，再排序显示，不会改变原始记录。
+
+The daily chart and category summary share the same seven-date list. A `Map` accumulates minutes and session counts for each category, then the results are sorted for display without changing the original records.
 
 恢复时读取保存的计时状态，不会重新开始一整轮。每轮有一个固定 ID，补记结束记录时先检查是否已有同一个 ID，避免刷新后重复计数。
 
@@ -78,6 +91,6 @@ With Node.js installed, run the core checks:
 node --test
 ```
 
-想试着改代码，可以先在 `index.html` 里给分类加一项，比如“阅读”。完成一轮短计时，导出 CSV，再把同一份备份导入两次：新分类应保留，记录数应不变。
+想试着改代码，可以先在 `index.html` 里给分类加一项，比如“阅读”。完成一轮短计时，检查分类汇总；再导出 CSV，把同一份备份导入两次：新分类应保留，记录数与分类分钟数应不变。
 
-For a small first change, add a category such as “Reading” to `index.html`. Complete a short session, export it, and import the same backup twice: the new category should remain, and the record count should not change.
+For a small first change, add a category such as “Reading” to `index.html`. Complete a short session and check the category summary. Export it and import the same backup twice: the category should remain, and neither the record count nor its total minutes should change.

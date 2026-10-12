@@ -50,6 +50,15 @@ input::placeholder { color: #8c948c; }
 .chart-bar { width: min(44px, 70%); min-height: 3px; background: #bacfbd; border-radius: 4px 4px 0 0; }
 .chart-bar.today { background: var(--green); }
 .chart-label { font-size: 11px; color: var(--muted); margin-top: 9px; }
+.category-summary { margin-bottom: 24px; }
+.category-summary h3 { margin: 0 0 16px; font-size: 14px; font-weight: 500; }
+.category-empty { font-size: 12px; color: var(--muted); margin: 0; }
+.category-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.category-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; font-size: 12px; margin-bottom: 6px; }
+.category-name { min-width: 0; overflow-wrap: anywhere; }
+.category-value { color: var(--muted); white-space: nowrap; }
+.category-track { background: #edf2eb; height: 5px; border-radius: 3px; overflow: hidden; }
+.category-bar { background: #bacfbd; height: 100%; border-radius: 3px; }
 .records-heading { padding-top: 23px; border-top: 1px solid var(--line); }
 .records-heading button { padding: 7px 12px; font-size: 12px; }
 .records-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }

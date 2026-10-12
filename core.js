@@ -78,17 +78,37 @@
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   }
 
-  function weeklyMinutes(sessions, today) {
-    const days = Array.from({ length: 7 }, (_, index) => {
+  function weekDateKeys(today) {
+    return Array.from({ length: 7 }, (_, index) => {
       const date = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       date.setDate(date.getDate() - 6 + index);
-      return { date: dateKey(date), minutes: 0 };
+      return dateKey(date);
     });
+  }
+
+  function weeklyMinutes(sessions, today) {
+    const days = weekDateKeys(today).map((date) => ({ date, minutes: 0 }));
     for (const session of sessions) {
       const day = days.find((item) => item.date === dateKey(new Date(session.finishedAt)));
       if (day) day.minutes += session.minutes;
     }
     return days;
+  }
+
+  function weeklyCategoryMinutes(sessions, today) {
+    const dates = new Set(weekDateKeys(today));
+    const categories = new Map();
+    for (const session of sessions) {
+      if (!dates.has(dateKey(new Date(session.finishedAt)))) continue;
+      if (!categories.has(session.category)) {
+        categories.set(session.category, { category: session.category, minutes: 0, sessions: 0 });
+      }
+      const category = categories.get(session.category);
+      category.minutes += session.minutes;
+      category.sessions++;
+    }
+    return Array.from(categories.values()).sort((left, right) =>
+      right.minutes - left.minutes || left.category.localeCompare(right.category, "zh-CN"));
   }
 
   function needsCsvEscape(value) {
@@ -246,7 +266,7 @@
       Number.isFinite(Date.parse(session.finishedAt));
   }
 
-  const api = { Timer, dateKey, weeklyMinutes, toCsv, fromCsv, mergeSessions, validSession, validActiveSession };
+  const api = { Timer, dateKey, weeklyMinutes, weeklyCategoryMinutes, toCsv, fromCsv, mergeSessions, validSession, validActiveSession };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.FocusCore = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

@@ -1,6 +1,6 @@
 "use strict";
 
-const { Timer, dateKey, weeklyMinutes, toCsv, fromCsv, mergeSessions, validSession, validActiveSession } = FocusCore;
+const { Timer, dateKey, weeklyMinutes, weeklyCategoryMinutes, toCsv, fromCsv, mergeSessions, validSession, validActiveSession } = FocusCore;
 const byId = (id) => document.getElementById(id);
 const storageKey = "focus-log.sessions.v1";
 const activeStorageKey = "focus-log.active.v1";
@@ -97,6 +97,35 @@ function setLocked(locked) {
   }
 }
 
+function drawCategories(now) {
+  const categories = weeklyCategoryMinutes(sessions, now);
+  const total = categories.reduce((sum, category) => sum + category.minutes, 0);
+  const list = byId("category-list");
+  list.replaceChildren();
+  byId("category-empty").hidden = categories.length > 0;
+  for (const category of categories) {
+    const item = document.createElement("li");
+    const heading = document.createElement("div");
+    heading.className = "category-row";
+    const name = document.createElement("span");
+    name.className = "category-name";
+    name.textContent = category.category;
+    const value = document.createElement("span");
+    value.className = "category-value";
+    value.textContent = `${category.minutes} 分钟 · ${category.sessions} 轮`;
+    heading.append(name, value);
+    const track = document.createElement("div");
+    track.className = "category-track";
+    track.setAttribute("aria-hidden", "true");
+    const bar = document.createElement("div");
+    bar.className = "category-bar";
+    bar.style.width = `${category.minutes / total * 100}%`;
+    track.append(bar);
+    item.append(heading, track);
+    list.append(item);
+  }
+}
+
 function drawRecords() {
   const now = new Date();
   const today = dateKey(now);
@@ -129,6 +158,7 @@ function drawRecords() {
     column.append(value, bar, label);
     chart.append(column);
   }
+  drawCategories(now);
 
   const rows = byId("records");
   rows.replaceChildren();
